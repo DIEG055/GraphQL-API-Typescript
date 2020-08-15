@@ -35,4 +35,7 @@ export class Customer extends BaseEntity {
   @Field()
   @Column("timestamp")
   birthday: Date;
+
+  @Column('bool', {default: false})
+  confirmed: boolean;
 }

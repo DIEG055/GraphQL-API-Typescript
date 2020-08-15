@@ -2,8 +2,12 @@ import "reflect-metadata";
 import { ApolloServer } from "apollo-server-express";
 import * as Express from "express";
 import { buildSchema, Resolver, Query } from "type-graphql";
-import { createConnection } from "typeorm";
-import { RegisterResolver } from "./modules/customer/authResolver";
+import { AuthResolver } from "./modules/customer/authResolver";
+import * as cors from "cors";
+import * as session from "express-session";
+import * as connectRedis from "connect-redis";
+import { redis } from "./redis";
+import { connect } from "./config/ormconfig";
 
 @Resolver()
 class HelloResolver {
@@ -14,20 +18,51 @@ class HelloResolver {
 }
 
 const main = async () => {
-  await createConnection();
+  // DB connection
+  require("dotenv").config();
+  await connect();
   const schema = await buildSchema({
-    resolvers: [HelloResolver, RegisterResolver],
+    resolvers: [HelloResolver, AuthResolver],
+    // resolvers: [__dirname + "modules/**/*.ts"]
   });
 
   const app = Express();
-  const apolloServer = new ApolloServer({ schema });
+  const apolloServer = new ApolloServer({
+    schema,
+    context: ({ req }: any) => ({ req }),
+  });
 
-  
+  const RedisStore = connectRedis(session);
+
+  app.use(
+    cors({
+      credentials: true,
+      origin: "http://localhost:3000", // expected frontend IP
+    })
+  );
+
+  app.use(
+    session({
+      store: new RedisStore({
+        client: redis as any,
+      }),
+      name: "qid",
+      secret: "env_variable_CHANGE!!",
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production", // only works on https
+        maxAge: 1000 * 60 * 60 * 24 * 365 * 0.5, // 0.5 years
+      },
+    })
+  );
 
   apolloServer.applyMiddleware({ app });
 
-  app.listen(4000, () => {
-    console.log("server started on http://localhost:4000/graphql");
+  const port = process.env.NODE_PORT;
+  app.listen(port, () => {
+    console.log(`server started on http://localhost:${port}/graphql`);
   });
 };
 

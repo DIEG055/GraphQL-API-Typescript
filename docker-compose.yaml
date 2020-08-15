@@ -1,0 +1,54 @@
+version: "3"
+
+services:
+  node_app:
+    build: .
+    volumes:
+      - ./:/app
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_POSTGRES_USER=${NODE_POSTGRES_USER}
+      - NODE_POSTGRES_PASSWORD=${NODE_POSTGRES_PASSWORD}
+      - NODE_POSTGRES_DB=${NODE_POSTGRES_DB}
+      - NODE_DATABASE_HOST=${NODE_DATABASE_HOST}
+      - NODE_PORT=${NODE_PORT}
+      - NODE_ENV=${NODE_ENV}
+    links:
+      - pg_db
+    depends_on:
+      - redis_db
+      - pg_db
+    networks:
+      - node-network
+
+  pg_db:
+    image: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${NODE_POSTGRES_USER}
+      - POSTGRES_PASSWORD=${NODE_POSTGRES_PASSWORD}
+      - POSTGRES_DB=${NODE_POSTGRES_DB}
+      - DATABASE_HOST=${NODE_DATABASE_HOST}
+    networks:
+      - node-network
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  redis_db:
+    image: "redis"
+    ports:
+      - 6379:6379
+    networks:
+      - node-network
+    volumes:
+      - redis_data:/var/lib/redis/data
+
+networks:
+  node-network:
+    driver: bridge
+
+volumes:
+  pg_data:
+  redis_data:
